@@ -22,12 +22,29 @@
 
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QPainter>
+#include <QStyleOptionTab>
 
 namespace Tiled {
 
 TabBar::TabBar(QWidget *parent)
     : QTabBar(parent)
 {}
+
+void TabBar::setTabDeleted(int index, bool deleted)
+{
+    if (deleted)
+        mDeletedTabs.insert(index);
+    else
+        mDeletedTabs.remove(index);
+
+    update();
+}
+
+bool TabBar::isTabDeleted(int index)
+{
+    return mDeletedTabs.contains(index) ;
+}
 
 void TabBar::mousePressEvent(QMouseEvent *event)
 {
@@ -63,4 +80,32 @@ void TabBar::wheelEvent(QWheelEvent *event)
     }
 }
 
+void TabBar::paintEvent(QPaintEvent *event)
+{
+    if (mDeletedTabs.isEmpty()) {
+        QTabBar::paintEvent(event);
+        return;
+    }
+
+    QPainter painter(this);
+    QStyleOptionTab opt;
+
+    for (int i = 0; i < count(); ++i) {
+        initStyleOption(&opt,i);
+
+        if (mDeletedTabs.contains(i)) {
+            opt.palette.setColor(QPalette::Text, Qt::red);
+            style()->drawControl(QStyle::CE_TabBarTab, &opt, &painter, this);
+
+            QRect textRect = style()->subElementRect(QStyle::SE_TabBarTabText, &opt, this);
+            QFont font = painter.font();
+            font.setStrikeOut(true);
+            painter.setFont(font);
+            painter.setPen(Qt::red);
+            painter.drawText(textRect, Qt::AlignCenter, tabText(i));
+        } else {
+            style()->drawControl(QStyle::CE_TabBarTab, &opt, &painter, this);
+        }
+    }
 } // namespace Tiled
+}
