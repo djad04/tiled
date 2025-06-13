@@ -865,6 +865,9 @@ void DocumentManager::closeDocumentAt(int index)
 
     emit documentAboutToClose(document.data());
 
+    // Clean up deleted documents tracking
+    mDeletedDocuments.remove(document.data());
+
     mDocuments.removeAt(index);
     mTabBar->removeTab(index);
 
@@ -1085,6 +1088,18 @@ void DocumentManager::onDocumentSaved()
 void DocumentManager::documentTabMoved(int from, int to)
 {
     mDocuments.move(from, to);
+      for (int i = 0; i < mTabBar->count(); ++i) {
+    mTabBar->setTabDeleted(i, false);
+}
+    // Update deleted tab tracking after tab move
+    // Since we can't override tabMoved in QTabBar, we handle it here
+    QSet<Document*> deletedDocs = mDeletedDocuments;
+    for (Document* doc : deletedDocs) {
+        int index = findDocument(doc);
+        if (index != -1) {
+            mTabBar->setTabDeleted(index, true);
+        }
+    }
 }
 
 void DocumentManager::tabContextMenuRequested(const QPoint &pos)
@@ -1147,20 +1162,84 @@ void DocumentManager::filesChanged(const QStringList &fileNames)
 {
     for (const QString &fileName : fileNames)
         fileChanged(fileName);
+
+    // Check if any deleted files have been restored
+    checkForRestoredFiles();
 }
 
 void DocumentManager::fileChanged(const QString &fileName)
 {
+    qDebug() << "fileChanged triggered for:" << fileName;
+
     const auto document = mDocumentByFileName.value(fileName);
     if (!document) {
-        qWarning() << "Document not found for changed file:" << fileName;
+        // This is expected for directory changes - just ignore silently
+        qDebug() << "No document found for path (likely a directory):" << fileName;
         return;
     }
 
     const QFileInfo fileInfo { fileName };
+    const bool fileExists = fileInfo.exists();
+    const bool wasDeleted = isDocumentDeleted(document);
+    qDebug() << "File exists:" << fileExists << ", Was deleted:" << wasDeleted;
 
     // Always update potentially changed read-only state
     document->setReadOnly(fileInfo.exists() && !fileInfo.isWritable());
+
+    // Handle file deletion/restoration
+    if (!fileExists && !wasDeleted) {
+        // File was deleted - mark tab as deleted instead of showing error dialog
+        qDebug() << "File deleted, marking document as deleted.";
+        markDocumentAsDeleted(document, true);
+
+        // Watch the parent directory to detect when file is restored
+        // (QFileSystemWatcher doesn't reliably watch non-existent files)
+        QFileInfo dirInfo(fileName);
+        QString parentDir = dirInfo.absolutePath();
+        if (!parentDir.isEmpty()) {
+            mFileSystemWatcher->addPath(parentDir);
+            qDebug() << "Started watching parent directory:" << parentDir;
+        }
+
+        return;
+    } else if (fileExists && wasDeleted) {
+        // File was restored - unmark as deleted and check if we need to reload
+        qDebug() << "File restored, processing restoration.";
+        markDocumentAsDeleted(document, false);
+
+        // Make sure we're watching the file again (not just the directory)
+        // First remove it to clear any internal state, then re-add
+        mFileSystemWatcher->removePath(fileName);
+        mFileSystemWatcher->addPath(fileName);
+        qDebug() << "Re-added restored file to file watcher:" << fileName;
+
+        // We can stop watching the parent directory now that the file is back
+        QFileInfo dirInfo(fileName);
+        QString parentDir = dirInfo.absolutePath();
+        if (!parentDir.isEmpty()) {
+            mFileSystemWatcher->removePath(parentDir);
+            qDebug() << "Stopped watching parent directory:" << parentDir;
+        }
+
+        // If no unsaved changes, automatically reload the restored file
+        if (!isDocumentModified(document)) {
+            reloadDocument(document);
+            return;
+        }
+
+        // If there are unsaved changes, mark as changed on disk so user can decide
+        document->setChangedOnDisk(true);
+        if (auto current = currentDocument())
+            if (isDocumentChangedOnDisk(current))
+                mFileChangedWarning->setVisible(true);
+        return;
+    } else if (!fileExists) {
+        // File is still deleted, nothing to do
+        qDebug() << "File is still deleted, no action needed.";
+        return;
+    }
+
+    // File exists and wasn't deleted - handle normal file modification
 
     // Ignore change event when it seems to be our own save
     if (fileInfo.lastModified() == document->lastSaved())
@@ -1190,6 +1269,49 @@ void DocumentManager::hideChangedWarning()
 
     document->setChangedOnDisk(false);
     mFileChangedWarning->setVisible(false);
+}
+
+void DocumentManager::markDocumentAsDeleted(Document *document, bool deleted)
+{
+    const int index = findDocument(document);
+    if (index == -1)
+        return;
+
+    if (deleted) {
+        mDeletedDocuments.insert(document);
+        mTabBar->setTabDeleted(index, true);
+    } else {
+        mDeletedDocuments.remove(document);
+        mTabBar->setTabDeleted(index, false);
+    }
+}
+
+bool DocumentManager::isDocumentDeleted(Document *document) const
+{
+    return mDeletedDocuments.contains(document);
+}
+
+void DocumentManager::checkForRestoredFiles()
+{
+    // Check all deleted documents to see if their files have been restored
+    QSet<Document*> restoredDocuments;
+
+    for (Document* document : mDeletedDocuments) {
+        const QString fileName = document->canonicalFilePath();
+        if (!fileName.isEmpty() && QFileInfo(fileName).exists()) {
+            qDebug() << "File restored, processing:" << fileName;
+            restoredDocuments.insert(document);
+        }
+    }
+
+    // Process restored files
+    for (Document* document : restoredDocuments) {
+        const QString fileName = document->canonicalFilePath();
+
+        // Trigger the normal file change handling for restoration
+        // (fileChanged will handle re-adding to watcher)
+        fileChanged(fileName);
+    }
 }
 
 TilesetDocument* DocumentManager::findTilesetDocument(const SharedTileset &tileset) const

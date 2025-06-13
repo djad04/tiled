@@ -41,9 +41,9 @@ void TabBar::setTabDeleted(int index, bool deleted)
     update();
 }
 
-bool TabBar::isTabDeleted(int index)
+bool TabBar::isTabDeleted(int index) const
 {
-    return mDeletedTabs.contains(index) ;
+    return mDeletedTabs.contains(index);
 }
 
 void TabBar::mousePressEvent(QMouseEvent *event)
@@ -80,6 +80,43 @@ void TabBar::wheelEvent(QWheelEvent *event)
     }
 }
 
+void TabBar::tabInserted(int index)
+{
+    QTabBar::tabInserted(index);
+
+    // Shift deleted tab indices that are >= the inserted index
+    QSet<int> newDeletedTabs;
+    for (int deletedIndex : mDeletedTabs) {
+        if (deletedIndex >= index) {
+            newDeletedTabs.insert(deletedIndex + 1);
+        } else {
+            newDeletedTabs.insert(deletedIndex);
+        }
+    }
+    mDeletedTabs = newDeletedTabs;
+}
+
+void TabBar::tabRemoved(int index)
+{
+    QTabBar::tabRemoved(index);
+
+    // Remove the deleted tab if it was at this index and shift others
+    QSet<int> newDeletedTabs;
+    for (int deletedIndex : mDeletedTabs) {
+        if (deletedIndex == index) {
+            // This deleted tab was removed, don't add it back
+            continue;
+        } else if (deletedIndex > index) {
+            newDeletedTabs.insert(deletedIndex - 1);
+        } else {
+            newDeletedTabs.insert(deletedIndex);
+        }
+    }
+    mDeletedTabs = newDeletedTabs;
+}
+
+
+
 void TabBar::paintEvent(QPaintEvent *event)
 {
     if (mDeletedTabs.isEmpty()) {
@@ -91,7 +128,7 @@ void TabBar::paintEvent(QPaintEvent *event)
     QStyleOptionTab opt;
 
     for (int i = 0; i < count(); ++i) {
-        initStyleOption(&opt,i);
+        initStyleOption(&opt, i);
 
         if (mDeletedTabs.contains(i)) {
             opt.palette.setColor(QPalette::Text, Qt::red);
@@ -107,5 +144,6 @@ void TabBar::paintEvent(QPaintEvent *event)
             style()->drawControl(QStyle::CE_TabBarTab, &opt, &painter, this);
         }
     }
-} // namespace Tiled
 }
+
+} // namespace Tiled
