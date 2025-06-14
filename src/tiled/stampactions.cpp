@@ -53,19 +53,19 @@ StampActions::StampActions(QObject *parent) : QObject(parent)
 
     mFlipHorizontal = new QAction(this);
     mFlipHorizontal->setIcon(flipHorizontalIcon);
-    mFlipHorizontal->setShortcut(Qt::Key_X);
+    // Shortcut is handled globally in MainWindow
 
     mFlipVertical = new QAction(this);
     mFlipVertical->setIcon(flipVerticalIcon);
-    mFlipVertical->setShortcut(Qt::Key_Y);
+    // Shortcut is handled globally in MainWindow
 
     mRotateLeft = new QAction(this);
     mRotateLeft->setIcon(rotateLeftIcon);
-    mRotateLeft->setShortcut(Qt::SHIFT + Qt::Key_Z);
+    // Shortcut is handled globally in MainWindow
 
     mRotateRight = new QAction(this);
     mRotateRight->setIcon(rotateRightIcon);
-    mRotateRight->setShortcut(Qt::Key_Z);
+    // Shortcut is handled globally in MainWindow
 
     ActionManager::registerAction(mRandom, "RandomMode");
     ActionManager::registerAction(mWangFill, "WangFillMode");
