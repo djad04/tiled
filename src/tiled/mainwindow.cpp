@@ -873,35 +873,6 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
     connect(copyPositionShortcut, &QShortcut::activated,
             mActionHandler, &MapDocumentActionHandler::copyPosition);
 
-    // Add global shortcuts for object transformation that work even in Clear View mode
-    QShortcut *rotateLeftShortcut = new QShortcut(Qt::SHIFT + Qt::Key_Z, this);
-    connect(rotateLeftShortcut, &QShortcut::activated, this, [this]() {
-        if (auto mapDocument = qobject_cast<MapDocument*>(mDocument)) {
-            mapDocument->rotateSelectedObjects(RotateLeft);
-        }
-    });
-
-    QShortcut *rotateRightShortcut = new QShortcut(Qt::Key_Z, this);
-    connect(rotateRightShortcut, &QShortcut::activated, this, [this]() {
-        if (auto mapDocument = qobject_cast<MapDocument*>(mDocument)) {
-            mapDocument->rotateSelectedObjects(RotateRight);
-        }
-    });
-
-    QShortcut *flipHorizontalShortcut = new QShortcut(Qt::Key_X, this);
-    connect(flipHorizontalShortcut, &QShortcut::activated, this, [this]() {
-        if (auto mapDocument = qobject_cast<MapDocument*>(mDocument)) {
-            mapDocument->flipSelectedObjects(FlipHorizontally);
-        }
-    });
-
-    QShortcut *flipVerticalShortcut = new QShortcut(Qt::Key_Y, this);
-    connect(flipVerticalShortcut, &QShortcut::activated, this, [this]() {
-        if (auto mapDocument = qobject_cast<MapDocument*>(mDocument)) {
-            mapDocument->flipSelectedObjects(FlipVertically);
-        }
-    });
-
     updateActions();
     updateZoomActions();
     readSettings();

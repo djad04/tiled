@@ -38,6 +38,7 @@
 #include <QGestureEvent>
 #include <QPinchGesture>
 #include <QScrollBar>
+#include <QShortcut>
 #include <QWheelEvent>
 
 #ifndef QT_NO_OPENGL
@@ -117,6 +118,35 @@ MapView::MapView(QWidget *parent)
 
         setInteractive(mode == PannableViewHelper::NoPanning);
         updatePanningDriverState();
+    });
+
+    // Add shortcuts for object transformation that work even in Clear View mode
+    QShortcut *rotateLeftShortcut = new QShortcut(Qt::SHIFT + Qt::Key_Z, this);
+    connect(rotateLeftShortcut, &QShortcut::activated, this, [this]() {
+        if (mMapDocument) {
+            mMapDocument->rotateSelectedObjects(RotateLeft);
+        }
+    });
+
+    QShortcut *rotateRightShortcut = new QShortcut(Qt::Key_Z, this);
+    connect(rotateRightShortcut, &QShortcut::activated, this, [this]() {
+        if (mMapDocument) {
+            mMapDocument->rotateSelectedObjects(RotateRight);
+        }
+    });
+
+    QShortcut *flipHorizontalShortcut = new QShortcut(Qt::Key_X, this);
+    connect(flipHorizontalShortcut, &QShortcut::activated, this, [this]() {
+        if (mMapDocument) {
+            mMapDocument->flipSelectedObjects(FlipHorizontally);
+        }
+    });
+
+    QShortcut *flipVerticalShortcut = new QShortcut(Qt::Key_Y, this);
+    connect(flipVerticalShortcut, &QShortcut::activated, this, [this]() {
+        if (mMapDocument) {
+            mMapDocument->flipSelectedObjects(FlipVertically);
+        }
     });
 }
 
