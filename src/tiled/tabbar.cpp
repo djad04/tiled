@@ -134,12 +134,14 @@ void TabBar::paintEvent(QPaintEvent *event)
             opt.palette.setColor(QPalette::Text, Qt::red);
             style()->drawControl(QStyle::CE_TabBarTab, &opt, &painter, this);
 
+            painter.save();
             QRect textRect = style()->subElementRect(QStyle::SE_TabBarTabText, &opt, this);
             QFont font = painter.font();
             font.setStrikeOut(true);
             painter.setFont(font);
             painter.setPen(Qt::red);
             painter.drawText(textRect, Qt::AlignCenter, tabText(i));
+            painter.restore();
         } else {
             style()->drawControl(QStyle::CE_TabBarTab, &opt, &painter, this);
         }

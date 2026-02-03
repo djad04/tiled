@@ -253,6 +253,8 @@ private:
     FileSystemWatcher *mFileSystemWatcher;
     QHash<QString, Document*> mDocumentByFileName;
     QSet<Document*> mDeletedDocuments;
+    QSet<Document*> mRecreatedDocuments;
+    QSet<Document*> mRestoringDocuments;
 
     static DocumentManager *mInstance;
 
